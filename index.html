@@ -50,7 +50,8 @@
     .meter{height:14px;background:#e8f4ff;border-radius:999px;overflow:hidden;margin-top:8px}
     .meter-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent2),#7ef5d6);transition:width 120ms linear}
     .pulse-ring{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;width:120px;height:120px;border-radius:50%;pointer-events:none}
-    .pulse-ring .ring{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(77,150,255,0.09);} 
+    /* prevent the animated rings from intercepting pointer events (they scale and can cover UI) */
+    .pulse-ring .ring{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(77,150,255,0.09);pointer-events:none;} 
 
     /* Balloon */
     .balloon-wrap{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);display:flex;align-items:center;flex-direction:column;gap:8px}
