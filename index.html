@@ -299,10 +299,12 @@
     document.getElementById('endMenu').textContent = t('backToMenu');
 
     // update selected labels to localized mode names
-    const selModeEl = document.getElementById('selMode');
-    selModeEl.textContent = state.mode === 'balloon' ? t('blowTitle') : t('vacuumTitle');
-    const selDiffEl = document.getElementById('selDiff');
-    selDiffEl.textContent = (state.diff === 'easy') ? t('easy') : (state.diff === 'medium' ? t('medium') : t('hard'));
+    if(typeof state !== 'undefined'){
+      const selModeEl = document.getElementById('selMode');
+      selModeEl.textContent = state.mode === 'balloon' ? t('blowTitle') : t('vacuumTitle');
+      const selDiffEl = document.getElementById('selDiff');
+      selDiffEl.textContent = (state.diff === 'easy') ? t('easy') : (state.diff === 'medium' ? t('medium') : t('hard'));
+    }
 
     // update lang toggle label
     const btn = document.getElementById('langToggle');
@@ -315,9 +317,6 @@
     localStorage.setItem('breath_lang', currentLang);
     updateUI();
   });
-
-  // call once at load
-  updateUI();
 
   // =========================
   // Basic state
@@ -333,6 +332,9 @@
     score: 0,
     balloonSize: 0,
   };
+
+  // call updateUI now that state is defined
+  updateUI();
 
   // Difficulty presets
   const presets = {
