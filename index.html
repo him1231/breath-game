@@ -50,7 +50,7 @@
     .meter{height:14px;background:#e8f4ff;border-radius:999px;overflow:hidden;margin-top:8px}
     .meter-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent2),#7ef5d6);transition:width 120ms linear}
     .pulse-ring{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;width:120px;height:120px;border-radius:50%;pointer-events:none}
-    .pulse-ring .ring{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(77,150,255,0.09);}
+    .pulse-ring .ring{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(77,150,255,0.09);} 
 
     /* Balloon */
     .balloon-wrap{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);display:flex;align-items:center;flex-direction:column;gap:8px}
@@ -76,38 +76,42 @@
       .panel{padding:12px}
       .logo{width:52px;height:52px}
     }
+
+    /* Language toggle */
+    #langToggle{position:fixed;right:18px;top:18px;z-index:999;background:transparent;border:0;padding:8px;border-radius:8px;font-weight:800;cursor:pointer}
   </style>
 </head>
 <body>
   <div class="app panel" id="app">
+    <button id="langToggle" aria-label="Toggle language">🌐 EN</button>
     <header>
       <div class="logo">💨</div>
       <div>
-        <h1>Breath Arcade</h1>
-        <p class="lead">Use your breath to play — blow to inflate, inhale to vacuum. Requires microphone permission (works on HTTPS / localhost).</p>
+        <h1 id="title">Breath Arcade</h1>
+        <p class="lead" id="lead">Use your breath to play — blow to inflate, inhale to vacuum. Requires microphone permission (works on HTTPS / localhost).</p>
       </div>
     </header>
 
     <!-- Start Menu -->
     <div id="menu" class="menu" style="margin-top:16px">
       <div class="card panel">
-        <h2 style="margin:0 0 6px">Choose Mode</h2>
+        <h2 id="chooseMode" style="margin:0 0 6px">Choose Mode</h2>
         <div class="modes">
           <div class="mode-btn active" data-mode="balloon"><div class="emoji">🎈</div><div>
-            <div style="font-weight:800">Blow Balloon</div>
-            <div style="font-size:12px;color:var(--muted)">Exhale to inflate — don't overdo it!</div>
+            <div style="font-weight:800" id="mode1title">Blow Balloon</div>
+            <div style="font-size:12px;color:var(--muted)" id="mode1desc">Exhale to inflate — don't overdo it!</div>
           </div></div>
           <div class="mode-btn" data-mode="vacuum"><div class="emoji">🌀</div><div>
-            <div style="font-weight:800">Vacuum</div>
-            <div style="font-size:12px;color:var(--muted)">Inhale to suck trash toward the nozzle — avoid bombs!</div>
+            <div style="font-weight:800" id="mode2title">Vacuum</div>
+            <div style="font-size:12px;color:var(--muted)" id="mode2desc">Inhale to suck trash toward the nozzle — avoid bombs!</div>
           </div></div>
         </div>
 
-        <h3 style="margin-top:14px;margin-bottom:6px">Difficulty</h3>
+        <h3 id="chooseDifficulty" style="margin-top:14px;margin-bottom:6px">Difficulty</h3>
         <div class="difficulty">
-          <div class="diff active" data-diff="easy">Easy</div>
-          <div class="diff" data-diff="medium">Medium</div>
-          <div class="diff" data-diff="hard">Hard</div>
+          <div class="diff active" data-diff="easy" id="diffEasy">Easy</div>
+          <div class="diff" data-diff="medium" id="diffMed">Medium</div>
+          <div class="diff" data-diff="hard" id="diffHard">Hard</div>
         </div>
 
         <div class="start-row">
@@ -117,15 +121,15 @@
       </div>
 
       <div class="hud panel">
-        <div class="stat"><div style="font-size:12px;color:var(--muted)">Selected</div><div id="selMode" style="font-weight:800;margin-top:6px">Blow Balloon</div></div>
-        <div class="stat"><div style="font-size:12px;color:var(--muted)">Difficulty</div><div id="selDiff" style="font-weight:800;margin-top:6px">Easy</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)" id="lblSelected">Selected</div><div id="selMode" style="font-weight:800;margin-top:6px">Blow Balloon</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)" id="lblDiff">Difficulty</div><div id="selDiff" style="font-weight:800;margin-top:6px">Easy</div></div>
         <div class="stat">
-          <div style="font-size:12px;color:var(--muted)">Breath Meter</div>
+          <div style="font-size:12px;color:var(--muted)" id="lblMeter">Breath Meter</div>
           <div class="meter" id="meter"><div class="meter-fill" id="meterFill"></div></div>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px">Waveform + level indicator</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px" id="lblWave">Waveform + level indicator</div>
         </div>
-        <div class="stat"><div style="font-size:12px;color:var(--muted)">Tips</div>
-          <div style="font-size:13px;margin-top:6px;color:#333">Tap "Start" then allow microphone. For mobile, briefly tap the screen when asked to enable audio capture.</div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)" id="lblTips">Tips</div>
+          <div style="font-size:13px;margin-top:6px;color:#333" id="tipsText">Tap "Start" then allow microphone. For mobile, briefly tap the screen when asked to enable audio capture.</div>
         </div>
       </div>
     </div>
@@ -149,9 +153,9 @@
       </div>
 
       <div class="hud panel">
-        <div class="stat"><div style="font-size:12px;color:var(--muted)">Time</div><div id="timer" class="big">00:00</div></div>
-        <div class="stat"><div style="font-size:12px;color:var(--muted)">Score</div><div id="score" class="big">0</div></div>
-        <div class="stat"><div style="font-size:12px;color:var(--muted)">Target</div><div id="targetInfo" style="font-weight:800;margin-top:6px">—</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)" id="lblTime">Time</div><div id="timer" class="big">00:00</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)" id="lblScore">Score</div><div id="score" class="big">0</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)" id="lblTarget">Target</div><div id="targetInfo" style="font-weight:800;margin-top:6px">—</div></div>
         <div style="margin-top:12px;display:flex;gap:8px">
           <button class="primary" id="retryBtn">Retry</button>
           <button class="ghost" id="backBtn">Back</button>
@@ -179,19 +183,154 @@
   // Single-file: UI, audio, game logic
   // =========================
 
+  // ======= Localization =======
+  const LANG = {
+    en: {
+      title: 'Breath Arcade',
+      lead: 'Use your breath to play — blow to inflate, inhale to vacuum. Requires microphone permission (works on HTTPS / localhost).',
+      chooseMode: 'Choose Mode',
+      blowTitle: 'Blow Balloon',
+      blowDesc: "Exhale to inflate — don't overdo it!",
+      vacuumTitle: 'Vacuum',
+      vacuumDesc: 'Inhale to suck trash toward the nozzle — avoid bombs!',
+      difficulty: 'Difficulty',
+      easy: 'Easy',
+      medium: 'Medium',
+      hard: 'Hard',
+      start: 'Start',
+      howToPlay: 'How to play',
+      selected: 'Selected',
+      difficultyLabel: 'Difficulty',
+      breathMeter: 'Breath Meter',
+      waveform: 'Waveform + level indicator',
+      tips: 'Tips',
+      tipsText: 'Tap "Start" then allow microphone. For mobile, briefly tap the screen when asked to enable audio capture.',
+      time: 'Time',
+      score: 'Score',
+      target: 'Target',
+      retry: 'Retry',
+      back: 'Back',
+      playAgain: 'Play Again',
+      backToMenu: 'Back to Menu',
+      youWin: 'You win! 🎉',
+      youLose: 'Time up ✨',
+      winMsg: 'Nice breathing control!',
+      loseMsg: 'Better luck next time.',
+      endScorePrefix: 'Score: ',
+      helpAlert: 'Choose a mode and difficulty. Tap Start, allow microphone, then blow (exhale) for balloon mode or inhale for vacuum mode. Watch the breath meter. Mobile: briefly tap when asked to enable microphone for iOS.'
+    },
+    zh: {
+      title: '呼吸遊戲',
+      lead: '用你的呼吸來遊玩 — 吹氣讓氣球膨脹，吸氣來吸走垃圾。需要麥克風權限（僅在 HTTPS 或 localhost 有效）。',
+      chooseMode: '選擇模式',
+      blowTitle: '吹氣球',
+      blowDesc: '吹氣讓氣球膨脹！',
+      vacuumTitle: '吸塵機',
+      vacuumDesc: '吸氣吸走垃圾！避開炸彈！',
+      difficulty: '難度',
+      easy: '簡單',
+      medium: '普通',
+      hard: '困難',
+      start: '開始',
+      howToPlay: '如何遊玩',
+      selected: '已選擇',
+      difficultyLabel: '難度',
+      breathMeter: '呼吸量表',
+      waveform: '波形與等級指示',
+      tips: '提示',
+      tipsText: '點擊「開始」並允許麥克風。手機端在詢問時輕觸螢幕以啟用音訊。',
+      time: '時間',
+      score: '分數',
+      target: '目標',
+      retry: '重試',
+      back: '返回',
+      playAgain: '再玩一次',
+      backToMenu: '返回主選單',
+      youWin: '你贏了！',
+      youLose: '遊戲結束！',
+      winMsg: '呼吸控制得很好！',
+      loseMsg: '下次再努力。',
+      endScorePrefix: '分數：',
+      helpAlert: '選擇模式與難度。點擊開始並允許麥克風，吹氣（呼氣）為吹氣球模式，吸氣為吸塵機模式。注意呼吸量表。手機端在詢問時輕觸以啟用麥克風（iOS）。'
+    }
+  };
+
+  let currentLang = localStorage.getItem('breath_lang') || 'en';
+  function t(key){ return (LANG[currentLang] && LANG[currentLang][key]) || key; }
+
+  function updateUI(){
+    // document title
+    document.title = t('title');
+    // header
+    document.getElementById('title').textContent = t('title');
+    document.getElementById('lead').textContent = t('lead');
+    // menu
+    document.getElementById('chooseMode').textContent = t('chooseMode');
+    document.getElementById('mode1title').textContent = t('blowTitle');
+    document.getElementById('mode1desc').textContent = t('blowDesc');
+    document.getElementById('mode2title').textContent = t('vacuumTitle');
+    document.getElementById('mode2desc').textContent = t('vacuumDesc');
+    document.getElementById('chooseDifficulty').textContent = t('difficulty');
+    document.getElementById('diffEasy').textContent = t('easy');
+    document.getElementById('diffMed').textContent = t('medium');
+    document.getElementById('diffHard').textContent = t('hard');
+    document.getElementById('startBtn').textContent = t('start');
+    document.getElementById('helpBtn').textContent = t('howToPlay');
+
+    // HUD labels on menu
+    document.getElementById('lblSelected').textContent = t('selected');
+    document.getElementById('lblDiff').textContent = t('difficultyLabel');
+    document.getElementById('lblMeter').textContent = t('breathMeter');
+    document.getElementById('lblWave').textContent = t('waveform');
+    document.getElementById('lblTips').textContent = t('tips');
+    document.getElementById('tipsText').textContent = t('tipsText');
+
+    // Game HUD
+    document.getElementById('lblTime').textContent = t('time');
+    document.getElementById('lblScore').textContent = t('score');
+    document.getElementById('lblTarget').textContent = t('target');
+    document.getElementById('retryBtn').textContent = t('retry');
+    document.getElementById('backBtn').textContent = t('back');
+
+    // End screen
+    // endTitle/endMsg will be updated by endRound to appropriate localized strings
+    document.getElementById('endRetry').textContent = t('playAgain');
+    document.getElementById('endMenu').textContent = t('backToMenu');
+
+    // update selected labels to localized mode names
+    const selModeEl = document.getElementById('selMode');
+    selModeEl.textContent = state.mode === 'balloon' ? t('blowTitle') : t('vacuumTitle');
+    const selDiffEl = document.getElementById('selDiff');
+    selDiffEl.textContent = (state.diff === 'easy') ? t('easy') : (state.diff === 'medium' ? t('medium') : t('hard'));
+
+    // update lang toggle label
+    const btn = document.getElementById('langToggle');
+    btn.textContent = currentLang === 'en' ? '🌐 EN' : '🌐 中文';
+  }
+
+  // Toggle language button
+  document.getElementById('langToggle').addEventListener('click',()=>{
+    currentLang = currentLang === 'en' ? 'zh' : 'en';
+    localStorage.setItem('breath_lang', currentLang);
+    updateUI();
+  });
+
+  // call once at load
+  updateUI();
+
+  // =========================
   // Basic state
+  // (rest unchanged)
   const state = {
     mode: 'balloon', // balloon | vacuum
     diff: 'easy',
     running: false,
-    audio: {ctx:null,analyser:null,source:null,data:null,level:0,freqData:null},
+    audio: {ctx:null,analyser:null,source:null,data:null,level:0},
     params: null,
     timerId: null,
     remaining: 0,
     score: 0,
     balloonSize: 0,
-    ambientLevel: 0,
-    calibrated: false
   };
 
   // Difficulty presets
@@ -229,7 +368,7 @@
       document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       state.mode = btn.dataset.mode;
-      selMode.textContent = state.mode === 'balloon' ? 'Blow Balloon' : 'Vacuum';
+      selMode.textContent = state.mode === 'balloon' ? t('blowTitle') : t('vacuumTitle');
     })
   });
   document.querySelectorAll('.diff').forEach(d=>{
@@ -246,11 +385,9 @@
     try{
       await ensureAudio();
     }catch(e){
-      alert('Microphone access required. Make sure this page is served over HTTPS or localhost.');
+      alert(t('helpAlert'));
       return;
     }
-    // calibration hint: ask player to take a deep breath to calibrate ambient
-    await calibrateAmbient();
     startGame();
   });
 
@@ -258,7 +395,7 @@
   document.getElementById('retryBtn').addEventListener('click',()=>{ stopGame(true); startGame(); });
   document.getElementById('endRetry').addEventListener('click',()=>{ stopGame(true); startGame(); });
   document.getElementById('endMenu').addEventListener('click',()=>{ stopGame(true); showMenu(); });
-  document.getElementById('helpBtn').addEventListener('click',()=>{ alert('Choose a mode and difficulty. Tap Start, allow microphone, then blow (exhale) for balloon mode or inhale for vacuum mode. Watch the breath meter. Mobile: briefly tap when asked to enable microphone for iOS.'); });
+  document.getElementById('helpBtn').addEventListener('click',()=>{ alert(t('helpAlert')); });
 
   // =========================
   // Audio setup & breath level
@@ -272,46 +409,22 @@
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
     source.connect(analyser);
-    const data = new Uint8Array(analyser.fftSize);
-    const freqData = new Float32Array(analyser.frequencyBinCount);
-    state.audio = {ctx,analyser,source,data,level:0,freqData};
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    state.audio = {ctx,analyser,source,data,level:0};
     // Start meter loop
     requestAnimationFrame(updateMeter);
-  }
-
-  function computeSpectralFlatness(floatFreqData){
-    // floatFreqData is in dB (from getFloatFrequencyData)
-    // convert dB to linear power, add small epsilon to avoid zeros
-    let geo = 0.0; let arith = 0.0; const eps = 1e-12;
-    const N = floatFreqData.length; if(N===0) return 0;
-    for(let i=0;i<N;i++){ const db = floatFreqData[i]; const lin = Math.pow(10, db/10) + eps; geo += Math.log(lin); arith += lin; }
-    const gmean = Math.exp(geo / N);
-    const amean = arith / N;
-    const sfm = gmean / (amean + eps);
-    return sfm; // 0..1-ish
   }
 
   function updateMeter(){
     const a = state.audio;
     if(!a.analyser) return;
-    // time domain for level
     a.analyser.getByteTimeDomainData(a.data);
     // compute RMS-ish level normalized 0..1
     let sum=0; for(let i=0;i<a.data.length;i++){const v=(a.data[i]-128)/128;sum+=v*v}
     const rms = Math.sqrt(sum/a.data.length);
-    // scale relative to ambient baseline (calibrated)
-    const ambient = Math.max(0, state.ambientLevel || 0);
-    let level = Math.max(0, rms - ambient);
-    // extra scaling to make exhale more visible
-    level = Math.min(1, level * 5);
-    a.level = level;
-
-    // frequency data for spectral flatness
-    a.analyser.getFloatFrequencyData(a.freqData);
-    const sfm = computeSpectralFlatness(a.freqData);
+    a.level = Math.min(1, rms*3); // scale
     // update UI
     meterFill.style.width = Math.round(a.level*100)+'%';
-    meterFill.title = 'SFM: '+sfm.toFixed(3);
     // pulse visual
     pulse.innerHTML = '';
     const rings = Math.max(1, Math.round(a.level*3));
@@ -324,69 +437,17 @@
     }
 
     // feed into game if running
-    if(state.running) handleBreath(a.level, sfm);
+    if(state.running) handleBreath(a.level);
 
     requestAnimationFrame(updateMeter);
   }
 
-  // Calibration: measure ambient noise and request a deep breath to set baseline
-  async function calibrateAmbient(){
-    // show a transient overlay prompt
-    const overlay = document.createElement('div'); overlay.style.position='fixed'; overlay.style.left=0; overlay.style.top=0; overlay.style.right=0; overlay.style.bottom=0; overlay.style.display='flex'; overlay.style.alignItems='center'; overlay.style.justifyContent='center'; overlay.style.background='rgba(0,0,0,0.35)'; overlay.style.zIndex=9999; const card = document.createElement('div'); card.style.background='white'; card.style.padding='18px'; card.style.borderRadius='12px'; card.style.textAlign='center'; card.innerHTML = '<div style="font-size:18px;font-weight:800;margin-bottom:8px">Calibration</div><div style="color:#555;margin-bottom:12px">Take a deep breath when ready — we will measure ambient noise and breath strength.</div><button id="calBtn" style="padding:10px 14px;border-radius:8px;background:linear-gradient(90deg,#4d96ff,#7ef5d6);color:white;border:none;">Start Calibration</button>';
-    overlay.appendChild(card); document.body.appendChild(overlay);
-    await new Promise(resolve=>{
-      document.getElementById('calBtn').addEventListener('click',()=>resolve(),{once:true});
-    });
-    // measure ambient for 1.2s
-    let acc=0, samples=0;
-    const measureAmbient = (ms=1200)=> new Promise(res=>{
-      const start = performance.now(); function loop(){
-        const now = performance.now();
-        const data = state.audio? state.audio.data : null;
-        if(data){ let s=0; for(let i=0;i<data.length;i++){const v=(data[i]-128)/128; s += v*v } const rms = Math.sqrt(s/data.length); acc += rms; samples++; }
-        if(now - start < ms) requestAnimationFrame(loop); else res();
-      } loop();
-    });
-    await measureAmbient(1200);
-    const ambient = acc / Math.max(1, samples);
-    // store ambient baseline (we subtract this from measured RMS). clamp
-    state.ambientLevel = Math.min(ambient, 0.06);
-
-    // now ask for a deep breath to measure strength (optional guidance)
-    card.innerHTML = '<div style="font-size:18px;font-weight:800;margin-bottom:8px">Now blow in — a deep exhale</div><div style="color:#555;margin-bottom:12px">Take a deep exhale now and hold for a moment.</div><div id="calStrength" style="font-weight:800;font-size:22px">—</div>';
-    // measure peak level for 1s
-    let peak=0; await new Promise(res=>{
-      const start = performance.now(); function loop(){
-        const now = performance.now();
-        const data = state.audio? state.audio.data : null;
-        if(data){ let s=0; for(let i=0;i<data.length;i++){const v=(data[i]-128)/128; s += v*v } const rms = Math.sqrt(s/data.length); const lvl = Math.max(0, rms - state.ambientLevel); peak = Math.max(peak, lvl);
-          document.getElementById('calStrength').textContent = Math.round(Math.min(1, lvl*5)*100)+'%';
-        }
-        if(now - start < 1000) requestAnimationFrame(loop); else res();
-      } loop();
-    });
-    // store a simple scale factor: helps set thresholds
-    state.calibrated = true;
-    state.calibrationPeak = Math.min(1, peak*5);
-    // remove overlay
-    overlay.remove();
-    // brief toast
-    const toast = document.createElement('div'); toast.style.position='fixed'; toast.style.left='50%'; toast.style.bottom='24px'; toast.style.transform='translateX(-50%)'; toast.style.background='#222'; toast.style.color='white'; toast.style.padding='10px 14px'; toast.style.borderRadius='999px'; toast.style.zIndex=9999; toast.textContent='Calibration complete'; document.body.appendChild(toast); setTimeout(()=>toast.remove(),1200);
-  }
-
-  // Breath detection uses BOTH volume (level) and spectral flatness (SFM) to distinguish breath from speech
+  // Simple threshold detection: when level surpasses threshold treat as active breath
+  // For balloon mode, we treat active as 'exhale' (both inhale and exhale produce volume, but player is instructed accordingly)
   let breathActive=false;
-  function handleBreath(level, sfm){
-    // adaptive thresholds
-    const baseThreshold = 0.12; // default
-    const vacuumOffset = 0.045; // make inhale more sensitive
-    const threshold = state.params && state.params.mode === 'vacuum' ? baseThreshold - vacuumOffset : baseThreshold;
-    // floating SFM threshold: breath is broadband -> higher SFM
-    const sfmThreshold = 0.15; // tunable
-
-    const isBreath = (level > Math.max(0.01, threshold)) && (sfm >= sfmThreshold);
-
-    if(isBreath){
+  function handleBreath(level){
+    const threshold = 0.15; // baseline; could adapt
+    if(level>threshold){
       if(!breathActive){ breathActive=true; onBreathStart(level); }
       else onBreath(level);
     } else {
@@ -434,9 +495,9 @@
   function endRound(won){
     stopGame(true);
     endScreen.style.display='block';
-    document.getElementById('endTitle').textContent = won ? 'You win! 🎉' : 'Time up ✨';
-    document.getElementById('endMsg').textContent = won ? 'Nice breathing control!' : 'Better luck next time.';
-    document.getElementById('endScore').textContent = 'Score: '+state.score;
+    document.getElementById('endTitle').textContent = won ? t('youWin') : t('youLose');
+    document.getElementById('endMsg').textContent = won ? t('winMsg') : t('loseMsg');
+    document.getElementById('endScore').textContent = t('endScorePrefix') + state.score;
   }
 
   function updateTimerDisplay(){
@@ -578,13 +639,11 @@
       const dist = Math.hypot(vx,vy);
       // normalize
       if(dist>2){ vx/=dist; vy/=dist; }
-      // increased attraction multiplier for inhale sensitivity
-      const baseSpeed = 0.6; // px per tick base
-      const speed = baseSpeed + level*14; // stronger pull
+      const speed = 0.5 + level*6; // px per tick
       const nx = (r.left + vx*speed); const ny = (r.top + vy*speed);
       t.style.transform = `translate(${nx - r.left}px,${ny - r.top}px)`;
       // if close enough, "suck" into nozzle
-      if(dist < 40 + level*40){
+      if(dist < 36 + level*30){
         // consume
         if(t.dataset.bomb==='1'){
           // bomb penalty -> end
