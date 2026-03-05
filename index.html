@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Breath Game — Blow Balloon & Vacuum</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* ========== Reset & Base ========== */
+    :root{
+      --bg:#f7fbff;
+      --card:#ffffff;
+      --accent:#ff6b6b;
+      --accent2:#4d96ff;
+      --muted:#61707a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{background:linear-gradient(180deg,#e8f2ff 0%,var(--bg) 100%);display:flex;align-items:center;justify-content:center;padding:24px}
+    .app{width:100%;max-width:980px;margin:0 auto}
+
+    /* ========== UI Shell ========== */
+    .panel{background:var(--card);border-radius:16px;padding:18px;box-shadow:0 8px 30px rgba(35,60,100,0.08)}
+    header{display:flex;align-items:center;gap:14px}
+    .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent2),#7ef5d6);display:flex;align-items:center;justify-content:center;font-size:28px;color:white}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+    /* ========== Start Screen ========== */
+    .menu{display:grid;grid-template-columns:1fr 250px;gap:18px}
+    .menu .card{padding:14px}
+    .modes{display:flex;flex-direction:column;gap:10px}
+    .mode-btn{display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;border:2px solid transparent;cursor:pointer}
+    .mode-btn:hover{transform:translateY(-3px)}
+    .mode-btn.active{border-color:rgba(77,150,255,0.25);box-shadow:0 6px 18px rgba(77,150,255,0.08)}
+    .emoji{font-size:20px}
+
+    .difficulty{display:flex;gap:8px;margin-top:12px}
+    .diff{flex:1;padding:10px;border-radius:10px;background:#f2f6fb;text-align:center;cursor:pointer}
+    .diff.active{background:linear-gradient(90deg,#ffe8e8,#fff2f0);font-weight:700;border:2px solid rgba(255,107,107,0.12)}
+
+    .start-row{display:flex;gap:10px;margin-top:14px}
+    button.primary{flex:1;padding:12px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#ffb2b2);border:none;color:white;font-weight:700;cursor:pointer}
+    button.ghost{padding:12px;border-radius:10px;background:transparent;border:2px solid #e6eefc;color:var(--muted);cursor:pointer}
+
+    /* ========== Game Area ========== */
+    .game{display:flex;gap:18px}
+    .stage{flex:1;min-height:420px;border-radius:12px;background:linear-gradient(180deg,#fff,#f7fbff);position:relative;padding:18px;overflow:hidden}
+    .hud{width:250px;padding:12px}
+    .meter{height:14px;background:#e8f4ff;border-radius:999px;overflow:hidden;margin-top:8px}
+    .meter-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent2),#7ef5d6);transition:width 120ms linear}
+    .pulse-ring{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;width:120px;height:120px;border-radius:50%;pointer-events:none}
+    .pulse-ring .ring{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(77,150,255,0.09);}
+
+    /* Balloon */
+    .balloon-wrap{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);display:flex;align-items:center;flex-direction:column;gap:8px}
+    .balloon{width:120px;height:160px;border-radius:60% 60% 50% 50%;background:radial-gradient(circle at 35% 25%,#ff9aa2,#ff6b6b);box-shadow:0 18px 40px rgba(255,107,107,0.15);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:28px;transition:width 160ms linear,height 160ms linear}
+    .knot{width:18px;height:18px;background:#ff5a5a;border-radius:4px;margin-top:-6px}
+    .string{width:2px;height:90px;background:linear-gradient(180deg,#c7c7c7,#b0b0b0);margin-top:6px}
+
+    /* Trash items */
+    .trash{position:absolute;font-size:28px;will-change:transform;transition:transform 120ms linear}
+
+    /* Score & timers */
+    .stat{background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;box-shadow:0 6px 18px rgba(34,60,100,0.03)}
+    .big{font-size:22px;font-weight:800}
+
+    /* End screen */
+    .end{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;padding:28px}
+
+    /* Responsive */
+    @media (max-width:820px){
+      .menu{grid-template-columns:1fr}
+      .hud{width:100%}
+      .game{flex-direction:column}
+      .panel{padding:12px}
+      .logo{width:52px;height:52px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app panel" id="app">
+    <header>
+      <div class="logo">💨</div>
+      <div>
+        <h1>Breath Arcade</h1>
+        <p class="lead">Use your breath to play — blow to inflate, inhale to vacuum. Requires microphone permission (works on HTTPS / localhost).</p>
+      </div>
+    </header>
+
+    <!-- Start Menu -->
+    <div id="menu" class="menu" style="margin-top:16px">
+      <div class="card panel">
+        <h2 style="margin:0 0 6px">Choose Mode</h2>
+        <div class="modes">
+          <div class="mode-btn active" data-mode="balloon"><div class="emoji">🎈</div><div>
+            <div style="font-weight:800">Blow Balloon</div>
+            <div style="font-size:12px;color:var(--muted)">Exhale to inflate — don't overdo it!</div>
+          </div></div>
+          <div class="mode-btn" data-mode="vacuum"><div class="emoji">🌀</div><div>
+            <div style="font-weight:800">Vacuum</div>
+            <div style="font-size:12px;color:var(--muted)">Inhale to suck trash toward the nozzle — avoid bombs!</div>
+          </div></div>
+        </div>
+
+        <h3 style="margin-top:14px;margin-bottom:6px">Difficulty</h3>
+        <div class="difficulty">
+          <div class="diff active" data-diff="easy">Easy</div>
+          <div class="diff" data-diff="medium">Medium</div>
+          <div class="diff" data-diff="hard">Hard</div>
+        </div>
+
+        <div class="start-row">
+          <button class="primary" id="startBtn">Start</button>
+          <button class="ghost" id="helpBtn">How to play</button>
+        </div>
+      </div>
+
+      <div class="hud panel">
+        <div class="stat"><div style="font-size:12px;color:var(--muted)">Selected</div><div id="selMode" style="font-weight:800;margin-top:6px">Blow Balloon</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)">Difficulty</div><div id="selDiff" style="font-weight:800;margin-top:6px">Easy</div></div>
+        <div class="stat">
+          <div style="font-size:12px;color:var(--muted)">Breath Meter</div>
+          <div class="meter" id="meter"><div class="meter-fill" id="meterFill"></div></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">Waveform + level indicator</div>
+        </div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)">Tips</div>
+          <div style="font-size:13px;margin-top:6px;color:#333">Tap "Start" then allow microphone. For mobile, briefly tap the screen when asked to enable audio capture.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Screen (hidden until start) -->
+    <div id="gameScreen" class="game" style="display:none;margin-top:16px">
+      <div class="stage panel" id="stage">
+        <!-- Pulse ring for breath visual -->
+        <div class="pulse-ring" id="pulse" aria-hidden="true"></div>
+
+        <!-- Balloon mode elements -->
+        <div class="balloon-wrap" id="balloonWrap" style="display:none">
+          <div class="balloon" id="balloon">0</div>
+          <div class="knot"></div>
+          <div class="string"></div>
+        </div>
+
+        <!-- Vacuum nozzle (center) -->
+        <div id="nozzle" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:96px;height:96px;border-radius:14px;background:linear-gradient(180deg,#fff,#e8f9ff);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(34,60,100,0.06);font-size:26px">🌀</div>
+
+      </div>
+
+      <div class="hud panel">
+        <div class="stat"><div style="font-size:12px;color:var(--muted)">Time</div><div id="timer" class="big">00:00</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)">Score</div><div id="score" class="big">0</div></div>
+        <div class="stat"><div style="font-size:12px;color:var(--muted)">Target</div><div id="targetInfo" style="font-weight:800;margin-top:6px">—</div></div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="primary" id="retryBtn">Retry</button>
+          <button class="ghost" id="backBtn">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- End Screen Modal -->
+    <div id="endScreen" class="panel" style="display:none;margin-top:16px">
+      <div class="end" id="endContent">
+        <div style="font-size:28px;font-weight:900" id="endTitle">You win!</div>
+        <div style="font-size:18px;color:var(--muted)" id="endMsg">Great job</div>
+        <div style="font-weight:800;font-size:22px" id="endScore">Score: 0</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="primary" id="endRetry">Play Again</button>
+          <button class="ghost" id="endMenu">Back to Menu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // =========================
+  // Breath Game JS
+  // Single-file: UI, audio, game logic
+  // =========================
+
+  // Basic state
+  const state = {
+    mode: 'balloon', // balloon | vacuum
+    diff: 'easy',
+    running: false,
+    audio: {ctx:null,analyser:null,source:null,data:null,level:0},
+    params: null,
+    timerId: null,
+    remaining: 0,
+    score: 0,
+    balloonSize: 0,
+  };
+
+  // Difficulty presets
+  const presets = {
+    balloon: {
+      easy: {count:3, time:30, margin:0.25, max:1.4},
+      medium:{count:5,time:20,margin:0.18,max:1.35},
+      hard:{count:7,time:15,margin:0.12,max:1.3}
+    },
+    vacuum: {
+      easy:{trash:8,bombs:0,time:30},
+      medium:{trash:12,bombs:2,time:20},
+      hard:{trash:18,bombs:4,time:15}
+    }
+  }
+
+  // UI refs
+  const menu = document.getElementById('menu');
+  const gameScreen = document.getElementById('gameScreen');
+  const endScreen = document.getElementById('endScreen');
+  const selMode = document.getElementById('selMode');
+  const selDiff = document.getElementById('selDiff');
+  const meterFill = document.getElementById('meterFill');
+  const pulse = document.getElementById('pulse');
+  const balloonWrap = document.getElementById('balloonWrap');
+  const balloonEl = document.getElementById('balloon');
+  const stage = document.getElementById('stage');
+  const timerEl = document.getElementById('timer');
+  const scoreEl = document.getElementById('score');
+  const targetInfo = document.getElementById('targetInfo');
+
+  // Mode & difficulty selection handlers
+  document.querySelectorAll('.mode-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.mode = btn.dataset.mode;
+      selMode.textContent = state.mode === 'balloon' ? 'Blow Balloon' : 'Vacuum';
+    })
+  });
+  document.querySelectorAll('.diff').forEach(d=>{
+    d.addEventListener('click',()=>{
+      document.querySelectorAll('.diff').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active');
+      state.diff = d.dataset.diff;
+      selDiff.textContent = d.textContent;
+    })
+  });
+
+  // Start button: initialize audio and start game
+  document.getElementById('startBtn').addEventListener('click',async ()=>{
+    try{
+      await ensureAudio();
+    }catch(e){
+      alert('Microphone access required. Make sure this page is served over HTTPS or localhost.');
+      return;
+    }
+    startGame();
+  });
+
+  document.getElementById('backBtn').addEventListener('click',()=>{ stopGame(true); showMenu(); });
+  document.getElementById('retryBtn').addEventListener('click',()=>{ stopGame(true); startGame(); });
+  document.getElementById('endRetry').addEventListener('click',()=>{ stopGame(true); startGame(); });
+  document.getElementById('endMenu').addEventListener('click',()=>{ stopGame(true); showMenu(); });
+  document.getElementById('helpBtn').addEventListener('click',()=>{ alert('Choose a mode and difficulty. Tap Start, allow microphone, then blow (exhale) for balloon mode or inhale for vacuum mode. Watch the breath meter. Mobile: briefly tap when asked to enable microphone for iOS.'); });
+
+  // =========================
+  // Audio setup & breath level
+  // =========================
+  async function ensureAudio(){
+    if(state.audio.ctx) return;
+    // iOS Safari requires a user gesture; startBtn click qualifies
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    state.audio = {ctx,analyser,source,data,level:0};
+    // Start meter loop
+    requestAnimationFrame(updateMeter);
+  }
+
+  function updateMeter(){
+    const a = state.audio;
+    if(!a.analyser) return;
+    a.analyser.getByteTimeDomainData(a.data);
+    // compute RMS-ish level normalized 0..1
+    let sum=0; for(let i=0;i<a.data.length;i++){const v=(a.data[i]-128)/128;sum+=v*v}
+    const rms = Math.sqrt(sum/a.data.length);
+    a.level = Math.min(1, rms*3); // scale
+    // update UI
+    meterFill.style.width = Math.round(a.level*100)+'%';
+    // pulse visual
+    pulse.innerHTML = '';
+    const rings = Math.max(1, Math.round(a.level*3));
+    for(let i=0;i<rings;i++){
+      const el = document.createElement('div');
+      el.className='ring';
+      el.style.opacity = (0.15 + a.level*0.6 - i*0.08).toString();
+      el.style.transform = `scale(${1 + a.level*0.6 + i*0.2})`;
+      pulse.appendChild(el);
+    }
+
+    // feed into game if running
+    if(state.running) handleBreath(a.level);
+
+    requestAnimationFrame(updateMeter);
+  }
+
+  // Simple threshold detection: when level surpasses threshold treat as active breath
+  // For balloon mode, we treat active as 'exhale' (both inhale and exhale produce volume, but player is instructed accordingly)
+  let breathActive=false;
+  function handleBreath(level){
+    const threshold = 0.15; // baseline; could adapt
+    if(level>threshold){
+      if(!breathActive){ breathActive=true; onBreathStart(level); }
+      else onBreath(level);
+    } else {
+      if(breathActive){ breathActive=false; onBreathEnd(); }
+    }
+  }
+
+  // =========================
+  // Game flow
+  // =========================
+  function startGame(){
+    // configure params
+    state.params = {mode:state.mode, diff:state.diff};
+    state.running = true; state.score=0; scoreEl.textContent='0';
+    // set time and targets
+    if(state.mode==='balloon'){
+      const p = presets.balloon[state.diff];
+      state.params.targetCount = p.count; state.params.time = p.time; state.params.margin = p.margin; state.params.max = p.max;
+      targetInfo.textContent = `${p.count} balloons · target ±${Math.round(p.margin*100)}% · ${p.time}s`;
+      setupBalloonMode();
+    } else {
+      const p = presets.vacuum[state.diff];
+      state.params.trash = p.trash; state.params.bombs = p.bombs; state.params.time = p.time;
+      targetInfo.textContent = `${p.trash} trash · ${p.bombs} bombs · ${p.time}s`;
+      setupVacuumMode();
+    }
+    // show screens
+    menu.style.display='none'; gameScreen.style.display='flex'; endScreen.style.display='none';
+    state.remaining = state.params.time; updateTimerDisplay();
+    // start countdown
+    state.timerId = setInterval(()=>{ state.remaining--; updateTimerDisplay(); if(state.remaining<=0) endRound(false); },1000);
+  }
+
+  function stopGame(resetUI=false){
+    state.running=false; clearInterval(state.timerId); state.timerId=null; // clear stage items
+    // remove trash
+    document.querySelectorAll('.trash').forEach(t=>t.remove());
+    // reset balloon
+    state.balloonSize=0; updateBalloon(0);
+    if(resetUI){ gameScreen.style.display='none'; }
+  }
+
+  function showMenu(){ menu.style.display='grid'; endScreen.style.display='none'; gameScreen.style.display='none'; }
+
+  function endRound(won){
+    stopGame(true);
+    endScreen.style.display='block';
+    document.getElementById('endTitle').textContent = won ? 'You win! 🎉' : 'Time up ✨';
+    document.getElementById('endMsg').textContent = won ? 'Nice breathing control!' : 'Better luck next time.';
+    document.getElementById('endScore').textContent = 'Score: '+state.score;
+  }
+
+  function updateTimerDisplay(){
+    const s = state.remaining; timerEl.textContent = (s<10? '00:0'+s : '00:'+ (s));
+  }
+
+  // =========================
+  // Balloon mode implementation
+  // =========================
+  let filledCount=0;
+  function setupBalloonMode(){
+    filledCount=0; state.balloonSize=0; balloonWrap.style.display='flex'; document.getElementById('nozzle').style.display='none';
+    updateBalloon(0);
+  }
+
+  function onBreathStart(level){
+    // begin inflation if in balloon mode
+    if(!state.running) return;
+    if(state.params.mode==='balloon'){
+      // increment size quickly on breath
+      changeBalloon(level*0.06 + 0.03);
+    } else if(state.params.mode==='vacuum'){
+      // vacuum inhaling -> attract trash
+      attractTrash(level);
+    }
+  }
+  function onBreath(level){
+    if(!state.running) return;
+    if(state.params.mode==='balloon') changeBalloon(level*0.05);
+    else if(state.params.mode==='vacuum') attractTrash(level);
+  }
+  function onBreathEnd(){ /* could add decay effects */ }
+
+  function changeBalloon(delta){
+    state.balloonSize += delta; // 0.. maybe >1
+    updateBalloon(state.balloonSize);
+    // check bounds
+    const max = state.params.max; // e.g. 1.4
+    if(state.balloonSize >= max){
+      // POP!
+      popBalloon();
+    } else {
+      // check if reached target range
+      const target = 1; const margin = state.params.margin;
+      if(state.balloonSize >= target - margin && state.balloonSize <= target + margin){
+        // success for one balloon
+        // small delay to lock in (require not explosive)
+        completeBalloon();
+      }
+    }
+  }
+
+  function updateBalloon(size){
+    // size 0 -> base (width 120x160). Scale accordingly
+    const baseW = 120, baseH = 160;
+    const w = Math.max(48, baseW * Math.min(1.8, 0.6 + size));
+    const h = Math.max(64, baseH * Math.min(1.8, 0.6 + size));
+    balloonEl.style.width = w + 'px';
+    balloonEl.style.height = h + 'px';
+    balloonEl.textContent = Math.round(size*100);
+  }
+
+  function popBalloon(){
+    // particle effect
+    const pos = balloonWrap.getBoundingClientRect();
+    const centerX = pos.left + pos.width/2; const centerY = pos.top + pos.height/2;
+    for(let i=0;i<18;i++){
+      const p = document.createElement('div'); p.textContent='💥'; p.style.position='fixed'; p.style.left=centerX+'px'; p.style.top=centerY+'px'; p.style.fontSize='16px'; p.style.opacity=1; p.style.transform = `translate(-50%,-50%)`;
+      document.body.appendChild(p);
+      const ang = Math.random()*Math.PI*2; const r = 40+Math.random()*120;
+      p.animate([{transform:`translate(-50%,-50%) translate(0,0) rotate(0deg)`, opacity:1},{transform:`translate(-50%,-50%) translate(${Math.cos(ang)*r}px,${Math.sin(ang)*r}px) rotate(${Math.random()*360}deg)`, opacity:0}],{duration:700+Math.random()*400,easing:'cubic-bezier(.2,.8,.2,1)'});
+      setTimeout(()=>p.remove(),1200);
+    }
+    // penalty
+    state.balloonSize = 0.2; updateBalloon(state.balloonSize);
+    state.score = Math.max(0, state.score - 8);
+    scoreEl.textContent = state.score;
+  }
+
+  let completeLock=false;
+  function completeBalloon(){
+    if(completeLock) return;
+    completeLock=true;
+    setTimeout(()=>{ // small confirmation window
+      // only accept if still in range
+      const s = state.balloonSize; const t=1,m=state.params.margin;
+      if(s>=t-m && s<=t+m){
+        filledCount++; state.score += Math.round(100 * (1 - Math.abs(1-s))); scoreEl.textContent = state.score;
+        // reset balloon
+        state.balloonSize = 0; updateBalloon(0);
+        // a little confetti
+        burstConfetti(balloonWrap.getBoundingClientRect());
+        // win condition
+        if(filledCount >= state.params.targetCount){ endRound(true); }
+      }
+      completeLock=false;
+    },380);
+  }
+
+  function burstConfetti(rect){
+    for(let i=0;i<18;i++){
+      const c = document.createElement('div'); c.textContent = ['✨','🎉','🎈','💫'][Math.floor(Math.random()*4)]; c.style.position='fixed'; c.style.left = (rect.left + rect.width/2)+'px'; c.style.top=(rect.top+rect.height/2)+'px'; c.style.transform='translate(-50%,-50%)'; c.style.fontSize='18px'; document.body.appendChild(c);
+      const ang = Math.random()*Math.PI*2; const r = 40+Math.random()*160;
+      c.animate([{transform:'translate(-50%,-50%)',opacity:1},{transform:`translate(-50%,-50%) translate(${Math.cos(ang)*r}px,${Math.sin(ang)*r}px)`,opacity:0}],{duration:900+Math.random()*400,easing:'cubic-bezier(.2,.8,.2,1)'});
+      setTimeout(()=>c.remove(),1200);
+    }
+  }
+
+  // =========================
+  // Vacuum Mode implementation
+  // =========================
+  const trashEmojis = ['🗑️','🧻','🍬','📦','🧃','🍪'];
+  function setupVacuumMode(){
+    balloonWrap.style.display='none'; document.getElementById('nozzle').style.display='flex';
+    // spawn trash items
+    const count = state.params.trash + state.params.bombs;
+    const bombs = state.params.bombs;
+    for(let i=0;i<count;i++){
+      const isBomb = i < bombs; // first bombs
+      spawnTrash(isBomb);
+    }
+  }
+
+  function spawnTrash(isBomb=false){
+    const t = document.createElement('div'); t.className='trash'; t.style.left = (10 + Math.random()*80)+'%'; t.style.top = (10 + Math.random()*70)+'%'; t.dataset.bomb = isBomb? '1':'0'; t.textContent = isBomb? '💣' : trashEmojis[Math.floor(Math.random()*trashEmojis.length)]; stage.appendChild(t);
+    // gentle float animation
+    const dx = (Math.random()-0.5)*40; const dy=(Math.random()-0.5)*40; const dur = 5000+Math.random()*7000;
+    t.animate([{transform:'translate(0,0)'},{transform:`translate(${dx}px,${dy}px)`},{transform:'translate(0,0)'}],{duration:dur,iterations:Infinity,easing:'ease-in-out'});
+  }
+
+  function attractTrash(level){
+    // move each trash toward nozzle center proportionally to inhalation level
+    const nozzle = document.getElementById('nozzle').getBoundingClientRect();
+    const cx = nozzle.left + nozzle.width/2; const cy = nozzle.top + nozzle.height/2;
+    document.querySelectorAll('.trash').forEach(t=>{
+      const r = t.getBoundingClientRect();
+      // compute vector from item to center
+      let vx = cx - (r.left + r.width/2); let vy = cy - (r.top + r.height/2);
+      const dist = Math.hypot(vx,vy);
+      // normalize
+      if(dist>2){ vx/=dist; vy/=dist; }
+      const speed = 0.5 + level*6; // px per tick
+      const nx = (r.left + vx*speed); const ny = (r.top + vy*speed);
+      t.style.transform = `translate(${nx - r.left}px,${ny - r.top}px)`;
+      // if close enough, "suck" into nozzle
+      if(dist < 36 + level*30){
+        // consume
+        if(t.dataset.bomb==='1'){
+          // bomb penalty -> end
+          explodeBomb(t);
+        } else {
+          collectTrash(t);
+        }
+      }
+    });
+  }
+
+  function collectTrash(el){
+    // small score
+    state.score += 12; scoreEl.textContent = state.score;
+    // puff
+    const r = el.getBoundingClientRect();
+    const p = document.createElement('div'); p.textContent='✨'; p.style.position='fixed'; p.style.left=(r.left + r.width/2)+'px'; p.style.top=(r.top + r.height/2)+'px'; p.style.transform='translate(-50%,-50%)'; p.style.fontSize='18px'; document.body.appendChild(p);
+    p.animate([{transform:'translate(-50%,-50%) scale(1)',opacity:1},{transform:'translate(-50%,-50%) scale(0.2)',opacity:0}],{duration:400}).onfinish = ()=>p.remove();
+    el.remove();
+    // check win: if no trash remain (non-bombs), win
+    if(document.querySelectorAll('.trash').length === 0) endRound(true);
+  }
+
+  function explodeBomb(el){
+    // bomb ends game
+    const r = el.getBoundingClientRect();
+    // explosion visuals
+    for(let i=0;i<16;i++){ const p=document.createElement('div'); p.textContent='💥'; p.style.position='fixed'; p.style.left=(r.left+r.width/2)+'px'; p.style.top=(r.top+r.height/2)+'px'; p.style.transform='translate(-50%,-50%)'; p.style.fontSize='16px'; document.body.appendChild(p); p.animate([{transform:'translate(-50%,-50%)',opacity:1},{transform:`translate(-50%,-50%) translate(${(Math.random()-0.5)*160}px,${(Math.random()-0.5)*160}px)`,opacity:0}],{duration:900}); setTimeout(()=>p.remove(),1200); }
+    // strong penalty and end
+    state.score = Math.max(0, state.score - 40); scoreEl.textContent = state.score;
+    endRound(false);
+  }
+
+  // =========================
+  // small polish: stop when page hidden
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) stopGame(true); });
+
+  // Prevent accidental selection
+  document.body.addEventListener('touchstart',()=>{}, {passive:true});
+  
+  // Ensure mobile button for iOS webaudio resume
+  document.addEventListener('click',()=>{
+    if(state.audio && state.audio.ctx && state.audio.ctx.state === 'suspended') state.audio.ctx.resume();
+  });
+
+  // Done
+  </script>
+</body>
+</html>
