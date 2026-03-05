@@ -184,12 +184,14 @@
     mode: 'balloon', // balloon | vacuum
     diff: 'easy',
     running: false,
-    audio: {ctx:null,analyser:null,source:null,data:null,level:0},
+    audio: {ctx:null,analyser:null,source:null,data:null,level:0,freqData:null},
     params: null,
     timerId: null,
     remaining: 0,
     score: 0,
     balloonSize: 0,
+    ambientLevel: 0,
+    calibrated: false
   };
 
   // Difficulty presets
@@ -247,6 +249,8 @@
       alert('Microphone access required. Make sure this page is served over HTTPS or localhost.');
       return;
     }
+    // calibration hint: ask player to take a deep breath to calibrate ambient
+    await calibrateAmbient();
     startGame();
   });
 
@@ -268,22 +272,46 @@
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
     source.connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    state.audio = {ctx,analyser,source,data,level:0};
+    const data = new Uint8Array(analyser.fftSize);
+    const freqData = new Float32Array(analyser.frequencyBinCount);
+    state.audio = {ctx,analyser,source,data,level:0,freqData};
     // Start meter loop
     requestAnimationFrame(updateMeter);
+  }
+
+  function computeSpectralFlatness(floatFreqData){
+    // floatFreqData is in dB (from getFloatFrequencyData)
+    // convert dB to linear power, add small epsilon to avoid zeros
+    let geo = 0.0; let arith = 0.0; const eps = 1e-12;
+    const N = floatFreqData.length; if(N===0) return 0;
+    for(let i=0;i<N;i++){ const db = floatFreqData[i]; const lin = Math.pow(10, db/10) + eps; geo += Math.log(lin); arith += lin; }
+    const gmean = Math.exp(geo / N);
+    const amean = arith / N;
+    const sfm = gmean / (amean + eps);
+    return sfm; // 0..1-ish
   }
 
   function updateMeter(){
     const a = state.audio;
     if(!a.analyser) return;
+    // time domain for level
     a.analyser.getByteTimeDomainData(a.data);
     // compute RMS-ish level normalized 0..1
     let sum=0; for(let i=0;i<a.data.length;i++){const v=(a.data[i]-128)/128;sum+=v*v}
     const rms = Math.sqrt(sum/a.data.length);
-    a.level = Math.min(1, rms*3); // scale
+    // scale relative to ambient baseline (calibrated)
+    const ambient = Math.max(0, state.ambientLevel || 0);
+    let level = Math.max(0, rms - ambient);
+    // extra scaling to make exhale more visible
+    level = Math.min(1, level * 5);
+    a.level = level;
+
+    // frequency data for spectral flatness
+    a.analyser.getFloatFrequencyData(a.freqData);
+    const sfm = computeSpectralFlatness(a.freqData);
     // update UI
     meterFill.style.width = Math.round(a.level*100)+'%';
+    meterFill.title = 'SFM: '+sfm.toFixed(3);
     // pulse visual
     pulse.innerHTML = '';
     const rings = Math.max(1, Math.round(a.level*3));
@@ -296,17 +324,69 @@
     }
 
     // feed into game if running
-    if(state.running) handleBreath(a.level);
+    if(state.running) handleBreath(a.level, sfm);
 
     requestAnimationFrame(updateMeter);
   }
 
-  // Simple threshold detection: when level surpasses threshold treat as active breath
-  // For balloon mode, we treat active as 'exhale' (both inhale and exhale produce volume, but player is instructed accordingly)
+  // Calibration: measure ambient noise and request a deep breath to set baseline
+  async function calibrateAmbient(){
+    // show a transient overlay prompt
+    const overlay = document.createElement('div'); overlay.style.position='fixed'; overlay.style.left=0; overlay.style.top=0; overlay.style.right=0; overlay.style.bottom=0; overlay.style.display='flex'; overlay.style.alignItems='center'; overlay.style.justifyContent='center'; overlay.style.background='rgba(0,0,0,0.35)'; overlay.style.zIndex=9999; const card = document.createElement('div'); card.style.background='white'; card.style.padding='18px'; card.style.borderRadius='12px'; card.style.textAlign='center'; card.innerHTML = '<div style="font-size:18px;font-weight:800;margin-bottom:8px">Calibration</div><div style="color:#555;margin-bottom:12px">Take a deep breath when ready — we will measure ambient noise and breath strength.</div><button id="calBtn" style="padding:10px 14px;border-radius:8px;background:linear-gradient(90deg,#4d96ff,#7ef5d6);color:white;border:none;">Start Calibration</button>';
+    overlay.appendChild(card); document.body.appendChild(overlay);
+    await new Promise(resolve=>{
+      document.getElementById('calBtn').addEventListener('click',()=>resolve(),{once:true});
+    });
+    // measure ambient for 1.2s
+    let acc=0, samples=0;
+    const measureAmbient = (ms=1200)=> new Promise(res=>{
+      const start = performance.now(); function loop(){
+        const now = performance.now();
+        const data = state.audio? state.audio.data : null;
+        if(data){ let s=0; for(let i=0;i<data.length;i++){const v=(data[i]-128)/128; s += v*v } const rms = Math.sqrt(s/data.length); acc += rms; samples++; }
+        if(now - start < ms) requestAnimationFrame(loop); else res();
+      } loop();
+    });
+    await measureAmbient(1200);
+    const ambient = acc / Math.max(1, samples);
+    // store ambient baseline (we subtract this from measured RMS). clamp
+    state.ambientLevel = Math.min(ambient, 0.06);
+
+    // now ask for a deep breath to measure strength (optional guidance)
+    card.innerHTML = '<div style="font-size:18px;font-weight:800;margin-bottom:8px">Now blow in — a deep exhale</div><div style="color:#555;margin-bottom:12px">Take a deep exhale now and hold for a moment.</div><div id="calStrength" style="font-weight:800;font-size:22px">—</div>';
+    // measure peak level for 1s
+    let peak=0; await new Promise(res=>{
+      const start = performance.now(); function loop(){
+        const now = performance.now();
+        const data = state.audio? state.audio.data : null;
+        if(data){ let s=0; for(let i=0;i<data.length;i++){const v=(data[i]-128)/128; s += v*v } const rms = Math.sqrt(s/data.length); const lvl = Math.max(0, rms - state.ambientLevel); peak = Math.max(peak, lvl);
+          document.getElementById('calStrength').textContent = Math.round(Math.min(1, lvl*5)*100)+'%';
+        }
+        if(now - start < 1000) requestAnimationFrame(loop); else res();
+      } loop();
+    });
+    // store a simple scale factor: helps set thresholds
+    state.calibrated = true;
+    state.calibrationPeak = Math.min(1, peak*5);
+    // remove overlay
+    overlay.remove();
+    // brief toast
+    const toast = document.createElement('div'); toast.style.position='fixed'; toast.style.left='50%'; toast.style.bottom='24px'; toast.style.transform='translateX(-50%)'; toast.style.background='#222'; toast.style.color='white'; toast.style.padding='10px 14px'; toast.style.borderRadius='999px'; toast.style.zIndex=9999; toast.textContent='Calibration complete'; document.body.appendChild(toast); setTimeout(()=>toast.remove(),1200);
+  }
+
+  // Breath detection uses BOTH volume (level) and spectral flatness (SFM) to distinguish breath from speech
   let breathActive=false;
-  function handleBreath(level){
-    const threshold = 0.15; // baseline; could adapt
-    if(level>threshold){
+  function handleBreath(level, sfm){
+    // adaptive thresholds
+    const baseThreshold = 0.12; // default
+    const vacuumOffset = 0.045; // make inhale more sensitive
+    const threshold = state.params && state.params.mode === 'vacuum' ? baseThreshold - vacuumOffset : baseThreshold;
+    // floating SFM threshold: breath is broadband -> higher SFM
+    const sfmThreshold = 0.15; // tunable
+
+    const isBreath = (level > Math.max(0.01, threshold)) && (sfm >= sfmThreshold);
+
+    if(isBreath){
       if(!breathActive){ breathActive=true; onBreathStart(level); }
       else onBreath(level);
     } else {
@@ -498,11 +578,13 @@
       const dist = Math.hypot(vx,vy);
       // normalize
       if(dist>2){ vx/=dist; vy/=dist; }
-      const speed = 0.5 + level*6; // px per tick
+      // increased attraction multiplier for inhale sensitivity
+      const baseSpeed = 0.6; // px per tick base
+      const speed = baseSpeed + level*14; // stronger pull
       const nx = (r.left + vx*speed); const ny = (r.top + vy*speed);
       t.style.transform = `translate(${nx - r.left}px,${ny - r.top}px)`;
       // if close enough, "suck" into nozzle
-      if(dist < 36 + level*30){
+      if(dist < 40 + level*40){
         // consume
         if(t.dataset.bomb==='1'){
           // bomb penalty -> end
